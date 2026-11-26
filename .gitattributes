@@ -1,0 +1,20 @@
+# 默认按文本处理，自动识别二进制
+* text=auto
+
+# Windows 源码统一使用 CRLF，避免在 Linux/macOS 上检出后 MSBuild 报错
+*.cs      text eol=crlf
+*.xaml    text eol=crlf
+*.csproj  text eol=crlf
+*.sln     text eol=crlf
+*.ps1     text eol=crlf
+*.bat     text eol=crlf
+*.config  text eol=crlf
+*.manifest text eol=crlf
+*.md      text eol=lf
+*.txt     text eol=crlf
+
+# 二进制文件不要做换行转换
+*.png     binary
+*.ico     binary
+*.exe     binary
+*.zip     binary

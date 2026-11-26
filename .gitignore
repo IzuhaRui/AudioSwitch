@@ -1,0 +1,19 @@
+# ---- Build output ----
+bin/
+obj/
+dist/
+tests/unit-test-report.txt
+*.user
+*.suo
+.vs/
+*.pdb
+
+# ---- Internal / not for publication ----
+.workbuddy/
+AI_HANDOVER.md
+PROJECT_SUMMARY.md
+
+# ---- OS junk ----
+Thumbs.db
+desktop.ini
+.DS_Store

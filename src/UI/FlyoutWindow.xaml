@@ -1,0 +1,316 @@
+﻿<Window x:Class="AudioSwitch.UI.FlyoutWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ui="clr-namespace:AudioSwitch.UI"
+        Title="音频设备切换器"
+        Width="380"
+        WindowStyle="None"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        Topmost="True"
+        AllowsTransparency="False"
+        Background="{DynamicResource FlyoutBackgroundBrush}"
+        FontFamily="Segoe UI"
+        FontSize="14"
+        SnapsToDevicePixels="True"
+        UseLayoutRounding="True"
+        TextOptions.TextFormattingMode="Display"
+        WindowStartupLocation="Manual"
+        Deactivated="OnWindowDeactivated"
+        KeyDown="OnWindowKeyDown"
+        Closing="OnWindowClosing">
+    <Window.Resources>
+        <SolidColorBrush x:Key="FlyoutBackgroundBrush" Color="#FFF2F2F2" />
+        <SolidColorBrush x:Key="PrimaryTextBrush" Color="#FF000000" />
+        <SolidColorBrush x:Key="SecondaryTextBrush" Color="#FF5F5F5F" />
+        <SolidColorBrush x:Key="SectionTextBrush" Color="#FF5F5F5F" />
+        <SolidColorBrush x:Key="AccentBrush" Color="#FF0078D7" />
+        <SolidColorBrush x:Key="SliderThumbBrush" Color="#FF0078D7" />
+        <SolidColorBrush x:Key="DeviceCheckBrush" Color="#FF0078D7" />
+        <SolidColorBrush x:Key="HoverBrush" Color="#FFE6E6E6" />
+        <SolidColorBrush x:Key="PressedBrush" Color="#FFDBDBDB" />
+        <SolidColorBrush x:Key="SeparatorBrush" Color="#FFE0E0E0" />
+        <SolidColorBrush x:Key="FlyoutBorderBrush" Color="#40000000" />
+        <SolidColorBrush x:Key="SliderTrackBrush" Color="#FFC8C8C8" />
+        <SolidColorBrush x:Key="SliderFillBrush" Color="#FF303030" />
+        <SolidColorBrush x:Key="LevelMeterBrush" Color="#FF101010" />
+        <SolidColorBrush x:Key="SliderThumbBorderBrush" Color="#FF1A1A1A" />
+        <SolidColorBrush x:Key="SelectedRowBackgroundBrush" Color="#FFE0E0E0" />
+        <SolidColorBrush x:Key="SelectedVolumeBackgroundBrush" Color="#FFE9E9E9" />
+        <SolidColorBrush x:Key="SelectedRowHoverBrush" Color="#FFD6D6D6" />
+        <SolidColorBrush x:Key="SelectedRowPressedBrush" Color="#FFCCCCCC" />
+
+        <Style x:Key="DeviceButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Height" Value="46" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="BackgroundBorder" Background="{TemplateBinding Background}"
+                                SnapsToDevicePixels="True">
+                            <ContentPresenter HorizontalAlignment="Stretch" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="BackgroundBorder" Property="Background"
+                                        Value="{DynamicResource HoverBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="BackgroundBorder" Property="Background"
+                                        Value="{DynamicResource PressedBrush}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="SelectedDeviceButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Height" Value="46" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="BackgroundBorder" Background="{TemplateBinding Background}"
+                                SnapsToDevicePixels="True">
+                            <ContentPresenter HorizontalAlignment="Stretch" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="BackgroundBorder" Property="Background"
+                                        Value="{DynamicResource SelectedRowHoverBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="BackgroundBorder" Property="Background"
+                                        Value="{DynamicResource SelectedRowPressedBrush}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="FooterButtonStyle" TargetType="Button" BasedOn="{StaticResource DeviceButtonStyle}">
+            <Setter Property="Height" Value="44" />
+        </Style>
+
+        <Style x:Key="FlyoutContextMenuStyle" TargetType="ContextMenu">
+            <Setter Property="Background" Value="{DynamicResource FlyoutBackgroundBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource FlyoutBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="FontFamily" Value="Microsoft YaHei UI" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ContextMenu">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                Padding="2" SnapsToDevicePixels="True">
+                            <StackPanel IsItemsHost="True"
+                                        KeyboardNavigation.DirectionalNavigation="Cycle" />
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="FlyoutMenuItemStyle" TargetType="MenuItem">
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Padding" Value="12,7" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="MenuItem">
+                        <Border x:Name="ItemBorder" Background="{TemplateBinding Background}"
+                                Padding="{TemplateBinding Padding}" SnapsToDevicePixels="True">
+                            <ContentPresenter ContentSource="Header" RecognizesAccessKey="True"
+                                              TextElement.Foreground="{TemplateBinding Foreground}"
+                                              VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsHighlighted" Value="True">
+                                <Setter TargetName="ItemBorder" Property="Background"
+                                        Value="{DynamicResource HoverBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.5" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="SliderFillRepeatButtonStyle" TargetType="RepeatButton">
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="IsTabStop" Value="False" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RepeatButton">
+                        <Border Background="Transparent" />
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="SliderEmptyRepeatButtonStyle" TargetType="RepeatButton">
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="IsTabStop" Value="False" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RepeatButton">
+                        <Border Background="Transparent" />
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="SliderThumbStyle" TargetType="Thumb">
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="Width" Value="8" />
+            <Setter Property="Height" Value="16" />
+            <Setter Property="SnapsToDevicePixels" Value="True" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Thumb">
+                        <Border Width="8" Height="16" CornerRadius="4"
+                                SnapsToDevicePixels="True"
+                                Background="{DynamicResource SliderThumbBrush}"
+                                BorderBrush="{DynamicResource SliderThumbBorderBrush}"
+                                BorderThickness="1" />
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="VolumeSliderStyle" TargetType="Slider">
+            <Setter Property="Minimum" Value="0" />
+            <Setter Property="Maximum" Value="100" />
+            <Setter Property="IsMoveToPointEnabled" Value="False" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="Height" Value="26" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Slider">
+                        <Grid x:Name="SliderRoot" Background="Transparent" ClipToBounds="True">
+                            <Border Height="2" CornerRadius="0" VerticalAlignment="Center"
+                                    Margin="4,0,4,0"
+                                    Background="{DynamicResource SliderTrackBrush}" />
+                            <!-- Volume fill: square-ended thin line up to the thumb. -->
+                            <Border Height="2" CornerRadius="0" HorizontalAlignment="Left"
+                                    VerticalAlignment="Center" Margin="4,0,0,0" IsHitTestVisible="False"
+                                    Background="{DynamicResource SliderFillBrush}"
+                                    Width="{Binding Path=(ui:LevelMeter.FillWidth), RelativeSource={RelativeSource TemplatedParent}}" />
+                            <!-- Live level meter: thicker only above the volume bar's centre line, square ends. -->
+                            <Border Height="4" CornerRadius="0" HorizontalAlignment="Left"
+                                    VerticalAlignment="Top" Margin="4,10,0,0" IsHitTestVisible="False"
+                                    Background="{DynamicResource LevelMeterBrush}"
+                                    Width="{Binding Path=(ui:LevelMeter.Level), RelativeSource={RelativeSource TemplatedParent}}" />
+                            <Track x:Name="PART_Track">
+                                <Track.DecreaseRepeatButton>
+                                    <RepeatButton Command="{x:Static Slider.DecreaseLarge}"
+                                                  Style="{StaticResource SliderFillRepeatButtonStyle}" />
+                                </Track.DecreaseRepeatButton>
+                                <Track.Thumb>
+                                    <Thumb Style="{StaticResource SliderThumbStyle}" />
+                                </Track.Thumb>
+                                <Track.IncreaseRepeatButton>
+                                    <RepeatButton Command="{x:Static Slider.IncreaseLarge}"
+                                                  Style="{StaticResource SliderEmptyRepeatButtonStyle}" />
+                                </Track.IncreaseRepeatButton>
+                            </Track>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="SliderRoot" Property="Opacity" Value="0.4" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="MuteButtonStyle" TargetType="Button">
+            <Setter Property="Width" Value="26" />
+            <Setter Property="Height" Value="26" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="MuteButtonBorder" Background="{TemplateBinding Background}"
+                                CornerRadius="3" SnapsToDevicePixels="True">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="MuteButtonBorder" Property="Background"
+                                        Value="{DynamicResource HoverBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="MuteButtonBorder" Property="Background"
+                                        Value="{DynamicResource PressedBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="MuteButtonBorder" Property="Opacity" Value="0.4" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Border x:Name="RootBorder" Background="{DynamicResource FlyoutBackgroundBrush}"
+            BorderBrush="{DynamicResource FlyoutBorderBrush}" BorderThickness="1">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <ScrollViewer x:Name="DeviceScrollViewer" Grid.Row="0"
+                          VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Disabled"
+                          Focusable="False"
+                          PanningMode="VerticalOnly">
+                <StackPanel x:Name="DeviceStackPanel" Margin="0,6,0,6" />
+            </ScrollViewer>
+
+            <Border Grid.Row="1" BorderBrush="{DynamicResource SeparatorBrush}" BorderThickness="0,1,0,0">
+                <Button x:Name="PageSwitchButton" Style="{StaticResource FooterButtonStyle}"
+                        Click="OnPageSwitchClick">
+                    <Grid Height="44">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="44" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock x:Name="PageSwitchGlyph" Text="&#xE71D;" FontFamily="Segoe MDL2 Assets"
+                                   FontSize="16" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource PrimaryTextBrush}" />
+                        <TextBlock x:Name="PageSwitchLabel" Grid.Column="1" Text="应用音量"
+                                   FontSize="14" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource PrimaryTextBrush}" />
+                    </Grid>
+                </Button>
+            </Border>
+        </Grid>
+    </Border>
+</Window>
