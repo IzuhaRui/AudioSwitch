@@ -1,4 +1,11 @@
-﻿# 音频设备切换器（AudioSwitch）v1.6.2
+# 音频设备切换器（AudioSwitch）v1.6.2
+
+[![最新版本](https://img.shields.io/github/v/release/IzuhaRui/AudioSwitch?label=release&color=blue)](https://github.com/IzuhaRui/AudioSwitch/releases/latest)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Platform](https://img.shields.io/badge/platform-Windows%2010-0078D6.svg)](#运行要求)
+[![.NET Framework](https://img.shields.io/badge/.NET%20Framework-4.7.1-512BD4.svg)](src/AudioSwitch.csproj)
+
+> **📥 下载**：到 [**Releases**](https://github.com/IzuhaRui/AudioSwitch/releases/latest) 下载 `AudioSwitch-1.6.2-win10.zip`，解压后双击 `AudioSwitch.exe` 即可使用（免安装、免管理员权限、Win10 自带运行库）。
 
 一个 Windows 10 原生风格的任务栏通知区域小工具：**左键单击右下角的托盘图标**，弹出设备面板，列出当前所有**音响（播放设备）**和**麦克风（录音设备）**，单击即可切换系统默认设备；**每个设备下方都有独立音量条和静音按钮**，可连续切换音响、麦克风而面板不会关闭。
 
