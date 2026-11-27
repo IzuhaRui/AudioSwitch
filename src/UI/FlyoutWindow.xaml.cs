@@ -43,6 +43,8 @@ namespace AudioSwitch.UI
         private readonly List<Button> _deviceButtons = new List<Button>();
         private readonly List<DeviceRowControls> _rows = new List<DeviceRowControls>();
         private readonly List<AppRowControls> _appRows = new List<AppRowControls>();
+        private readonly HashSet<string> _explicitMuteDeviceIds =
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         private readonly DispatcherTimer _volumeTimer;
         private readonly DispatcherTimer _levelTimer;
         private readonly DispatcherTimer _appTimer;
@@ -53,6 +55,10 @@ namespace AudioSwitch.UI
         private bool _showAppsPage;
         private string _appSignature;
         private Slider _draggingSlider;
+        private bool _dragDeviceVolume;
+        private string _dragDeviceId;
+        private double _dragStartValue;
+        private bool _dragMoved;
 
         public FlyoutWindow(FlyoutViewModel viewModel, AppVolumeViewModel appVolume,
             IThemeProvider themeProvider, IAppSettings settings, ILogger logger)
@@ -94,6 +100,15 @@ namespace AudioSwitch.UI
         }
 
         public event Action<string> SwitchFailed;
+
+        /// <summary>Raised when the user starts dragging a device volume slider.</summary>
+        public event Action VolumeDragStarted;
+
+        /// <summary>
+        /// Raised when a device volume drag ends. The second argument is true only when
+        /// the value actually changed, so the owner can play one feedback sound on release.
+        /// </summary>
+        public event Action<string, bool> VolumeDragCompleted;
 
         /// <summary>Used by the developer capture/screenshot modes so the window does not hide on focus loss.</summary>
         internal bool SuspendAutoHide
@@ -174,6 +189,7 @@ namespace AudioSwitch.UI
 
         public void HideFlyout()
         {
+            CancelSliderDrag();
             StopVolumePolling();
             StopLevelMeter();
             StopAppTimer();
@@ -189,6 +205,7 @@ namespace AudioSwitch.UI
 
         public void CloseForExit()
         {
+            CancelSliderDrag();
             StopVolumePolling();
             StopLevelMeter();
             StopAppTimer();
@@ -1243,8 +1260,35 @@ namespace AudioSwitch.UI
             }
         }
 
+        private bool IsExplicitlyMuted(string deviceId)
+        {
+            return !string.IsNullOrEmpty(deviceId) && _explicitMuteDeviceIds.Contains(deviceId);
+        }
+
+        private void SetExplicitlyMuted(string deviceId, bool muted)
+        {
+            if (string.IsNullOrEmpty(deviceId))
+            {
+                return;
+            }
+
+            if (muted)
+            {
+                _explicitMuteDeviceIds.Add(deviceId);
+            }
+            else
+            {
+                _explicitMuteDeviceIds.Remove(deviceId);
+            }
+        }
+
         private void LoadVolumeState(DeviceRowControls row)
         {
+            // The rows are rebuilt every time the panel is reopened. Keep the
+            // user's explicit mute choice outside the row controls so a 0% +
+            // explicit mute still shows the speaker+X after reopening.
+            row.ExplicitMute = IsExplicitlyMuted(row.Item.Id);
+
             AudioVolumeState state;
             if (!_viewModel.TryGetVolumeState(row.Item, out state))
             {
@@ -1281,13 +1325,19 @@ namespace AudioSwitch.UI
                 {
                     // External unmute clears the "user explicitly muted" flag.
                     row.ExplicitMute = false;
+                    SetExplicitlyMuted(row.Item.Id, false);
+                }
+                else if (IsExplicitlyMuted(row.Item.Id))
+                {
+                    // Restore the flag for a freshly rebuilt row.
+                    row.ExplicitMute = true;
                 }
 
                 row.DisplayedMuted = state.Muted && (state.Percent > 0 || row.ExplicitMute);
                 if (row.MuteGlyph != null)
                 {
                     row.MuteGlyph.Text = VolumeGlyphs.GetDisplayGlyph(state.Percent,
-                        state.Muted, row.ExplicitMute);
+                        row.DisplayedMuted, row.ExplicitMute);
                 }
 
                 if (row.PercentText != null)
@@ -1299,7 +1349,7 @@ namespace AudioSwitch.UI
 
                 if (row.MuteButton != null)
                 {
-                        AutomationProperties.SetName(row.MuteButton, state.Muted ? "取消静音" : "静音");
+                    AutomationProperties.SetName(row.MuteButton, state.Muted ? "取消静音" : "静音");
                 }
             }
             finally
@@ -1317,14 +1367,27 @@ namespace AudioSwitch.UI
                 return;
             }
 
+            if (_draggingSlider == slider)
+            {
+                _dragMoved = Math.Abs(slider.Value - _dragStartValue) > 0.01;
+            }
+
             int percent = (int)Math.Round(slider.Value);
             _viewModel.TrySetVolume(row.Item, (float)(slider.Value / 100.0));
 
             // Some audio drivers auto-unmute when the volume is changed. If the device is
             // currently shown as muted (explicit button click or an external mute at a
-            // non-zero volume), keep it muted while the user adjusts the volume.
+            // non-zero volume), keep it muted while the user adjusts the volume. Treating
+            // a slider gesture on an already-muted row as explicit preserves the shown
+            // speaker+X when the panel is closed and rebuilt at 0%.
             if (row.DisplayedMuted)
             {
+                if (!row.ExplicitMute)
+                {
+                    row.ExplicitMute = true;
+                    SetExplicitlyMuted(row.Item.Id, true);
+                }
+
                 _viewModel.TrySetMute(row.Item, true);
             }
 
@@ -1353,17 +1416,18 @@ namespace AudioSwitch.UI
             {
                 row.LastMuted = newMuted;
                 row.ExplicitMute = newMuted;
+                SetExplicitlyMuted(row.Item.Id, newMuted);
                 row.DisplayedMuted = newMuted && (row.LastPercent > 0 || row.ExplicitMute);
 
                 if (row.MuteGlyph != null)
                 {
                     row.MuteGlyph.Text = VolumeGlyphs.GetDisplayGlyph(row.LastPercent,
-                        newMuted, row.ExplicitMute);
+                        row.DisplayedMuted, row.ExplicitMute);
                 }
 
                 if (row.MuteButton != null)
                 {
-                        AutomationProperties.SetName(row.MuteButton, newMuted ? "取消静音" : "静音");
+                    AutomationProperties.SetName(row.MuteButton, newMuted ? "取消静音" : "静音");
                 }
             }
         }
@@ -1391,6 +1455,58 @@ namespace AudioSwitch.UI
             slider.Value = ComputeSliderValue(slider, x);
         }
 
+        private void BeginSliderDrag(Slider slider)
+        {
+            DeviceRowControls row = slider != null ? slider.Tag as DeviceRowControls : null;
+            _dragDeviceVolume = row != null;
+            _dragDeviceId = row != null ? row.Item.Id : null;
+            _dragStartValue = slider != null ? slider.Value : 0;
+            _dragMoved = false;
+
+            if (_dragDeviceVolume)
+            {
+                Action handler = VolumeDragStarted;
+                if (handler != null)
+                {
+                    handler();
+                }
+            }
+        }
+
+        private void FinishSliderDrag(Slider slider, bool allowFeedback)
+        {
+            if (slider == null || _draggingSlider != slider)
+            {
+                return;
+            }
+
+            bool deviceVolume = _dragDeviceVolume;
+            string deviceId = _dragDeviceId;
+            bool changed = _dragMoved;
+            _draggingSlider = null;
+            _dragDeviceVolume = false;
+            _dragDeviceId = null;
+            _dragMoved = false;
+
+            if (deviceVolume)
+            {
+                Action<string, bool> handler = VolumeDragCompleted;
+                if (handler != null)
+                {
+                    handler(deviceId, allowFeedback && changed);
+                }
+            }
+        }
+
+        private void CancelSliderDrag()
+        {
+            Slider slider = _draggingSlider;
+            if (slider != null)
+            {
+                FinishSliderDrag(slider, false);
+            }
+        }
+
         private void OnVolumeSliderMouseDown(object sender, MouseButtonEventArgs e)
         {
             Slider slider = sender as Slider;
@@ -1399,8 +1515,18 @@ namespace AudioSwitch.UI
                 return;
             }
 
+            if (_draggingSlider != null && _draggingSlider != slider)
+            {
+                FinishSliderDrag(_draggingSlider, false);
+            }
+
             // Allow dragging from any point of the bar, like the Windows volume slider,
             // instead of only when the thumb itself is grabbed.
+            if (_draggingSlider == null)
+            {
+                BeginSliderDrag(slider);
+            }
+
             _draggingSlider = slider;
             slider.Focus();
             slider.CaptureMouse();
@@ -1429,12 +1555,8 @@ namespace AudioSwitch.UI
             }
 
             ApplySliderPoint(slider, e.GetPosition(slider).X);
+            FinishSliderDrag(slider, true);
             slider.ReleaseMouseCapture();
-            if (_draggingSlider == slider)
-            {
-                _draggingSlider = null;
-            }
-
             e.Handled = true;
         }
 
@@ -1445,7 +1567,7 @@ namespace AudioSwitch.UI
             Slider slider = sender as Slider;
             if (Mouse.LeftButton != MouseButtonState.Pressed && _draggingSlider == slider)
             {
-                _draggingSlider = null;
+                FinishSliderDrag(slider, true);
             }
         }
 
@@ -1459,7 +1581,7 @@ namespace AudioSwitch.UI
 
             if (e.LeftButton != MouseButtonState.Pressed)
             {
-                _draggingSlider = null;
+                FinishSliderDrag(slider, true);
                 return;
             }
 
@@ -1476,7 +1598,7 @@ namespace AudioSwitch.UI
             }
 
             ApplySliderPoint(slider, e.GetPosition(slider).X);
-            _draggingSlider = null;
+            FinishSliderDrag(slider, true);
             e.Handled = true;
         }
 
@@ -1587,6 +1709,7 @@ namespace AudioSwitch.UI
 
         protected override void OnClosed(EventArgs e)
         {
+            CancelSliderDrag();
             StopVolumePolling();
             StopLevelMeter();
             StopAppTimer();
@@ -1886,6 +2009,16 @@ namespace AudioSwitch.UI
             }
 
             return builder.ToString();
+        }
+
+        internal string GetRowMuteGlyph(int index)
+        {
+            if (index < 0 || index >= _rows.Count || _rows[index].MuteGlyph == null)
+            {
+                return null;
+            }
+
+            return _rows[index].MuteGlyph.Text;
         }
 
         internal void SimulateSelectRow(int index)

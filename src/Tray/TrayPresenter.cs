@@ -42,6 +42,7 @@ namespace AudioSwitch.Tray
         private bool _explicitMuteValue;
         private bool _lastMuted;
         private bool _lastHasVolumeState;
+        private bool _volumeDragActive;
 
         public TrayPresenter(Dispatcher dispatcher, ITrayIconHost trayHost, IAudioDeviceService audio,
             IAudioVolumeService volume, IThemeProvider theme, IAppSettings settings,
@@ -215,11 +216,50 @@ namespace AudioSwitch.Tray
             });
         }
 
+        /// <summary>Suppresses the debounced beep while the pointer is dragging a slider.</summary>
+        public void BeginVolumeDrag()
+        {
+            _volumeDragActive = true;
+            _soundTimer.Stop();
+        }
+
+        /// <summary>
+        /// Called once when the pointer is released. Plays a single beep if the main output
+        /// volume actually changed during the drag; no beep at all for microphones or
+        /// non-default devices, matching the old behavior.
+        /// </summary>
+        public void CompleteVolumeDrag(string deviceId, bool changed)
+        {
+            _volumeDragActive = false;
+            _soundTimer.Stop();
+
+            if (!changed || string.IsNullOrEmpty(deviceId))
+            {
+                return;
+            }
+
+            if (!string.Equals(deviceId, _defaultPlaybackId, StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            if (_settings.GetFlag("VolumeFeedbackSound", true))
+            {
+                SystemSoundFeedback.PlayVolumeFeedback();
+            }
+        }
+
         /// <summary>Plays the Windows volume-change beep once the slider has settled.</summary>
         private void TryScheduleVolumeFeedback(AudioVolumeChangedEventArgs args)
         {
             if (args == null || string.IsNullOrEmpty(args.DeviceId))
             {
+                return;
+            }
+
+            if (_volumeDragActive)
+            {
+                // The drag completion path plays the single feedback sound on release.
                 return;
             }
 

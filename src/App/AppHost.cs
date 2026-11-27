@@ -103,7 +103,15 @@ namespace AudioSwitch.Host
 
         private FlyoutWindow CreateFlyoutWindow()
         {
-            return new FlyoutWindow(_flyoutViewModel, _appVolumeViewModel, _theme, _settings, _logger);
+            FlyoutWindow window = new FlyoutWindow(_flyoutViewModel, _appVolumeViewModel,
+                _theme, _settings, _logger);
+            if (_presenter != null)
+            {
+                window.VolumeDragStarted += _presenter.BeginVolumeDrag;
+                window.VolumeDragCompleted += _presenter.CompleteVolumeDrag;
+            }
+
+            return window;
         }
 
         private void OnPresenterExitRequested(object sender, EventArgs e)

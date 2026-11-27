@@ -747,6 +747,15 @@ namespace AudioSwitch.Host
                         report.AppendLine();
 
                         report.AppendLine("[步骤 4] 用真实鼠标输入从音量条任意位置按下并拖到 85%");
+                        int dragStartedCount = 0;
+                        int dragCompletedCount = 0;
+                        bool dragCompletedChanged = false;
+                        window.VolumeDragStarted += delegate { dragStartedCount++; };
+                        window.VolumeDragCompleted += delegate(string id, bool changed)
+                        {
+                            dragCompletedCount++;
+                            dragCompletedChanged = changed;
+                        };
                         Rect sliderBounds = window.GetSliderScreenBounds(2);
                         string dragId = window.GetRowId(2);
                         if (sliderBounds.IsEmpty || sliderBounds.Width < 40)
@@ -776,8 +785,10 @@ namespace AudioSwitch.Host
                                 + (simulatedState != null
                                     ? simulatedState.Percent + "%（期望约 85%）"
                                     : "读取失败"));
+                            bool simulatedPanelMuteOk = CheckPanelMutePersistence(window, report);
                             FinishUiTest(report, window, theme, audio, volume, options, logger,
-                                muteState, volumeState, simulatedState, hideFeatureOk);
+                                muteState, volumeState, simulatedState, hideFeatureOk, true,
+                                simulatedPanelMuteOk);
                             return;
                         }
 
@@ -814,7 +825,10 @@ namespace AudioSwitch.Host
                                     break;
                                 case 5:
                                     NativeMethods.mouse_event(NativeMethods.MOUSEEVENTF_LEFTUP, 0, 0, 0, UIntPtr.Zero);
-                                    report.AppendLine("  步5 松开: " + window.DescribeSliderState(2));
+                                    report.AppendLine("  步5 松开: " + window.DescribeSliderState(2)
+                                        + "，拖动事件反馈: 开始=" + dragStartedCount
+                                        + "，完成=" + dragCompletedCount
+                                        + "，有变化=" + dragCompletedChanged);
                                     break;
                                 default:
                                     dragTimer.Stop();
@@ -823,8 +837,16 @@ namespace AudioSwitch.Host
                                     volume.TryGetState(dragId, out dragState);
                                     report.AppendLine("拖动后第 3 行音量: "
                                         + (dragState != null ? dragState.Percent + "%" : "读取失败"));
+                                    bool dragFeedbackOk = dragStartedCount == 1
+                                        && dragCompletedCount == 1 && dragCompletedChanged;
+                                    report.AppendLine("音量拖动事件回调: 开始=" + dragStartedCount
+                                        + "，完成=" + dragCompletedCount
+                                        + "，有变化=" + dragCompletedChanged
+                                        + "（期望 1/1/True，松开才提示一次）");
+                                    bool panelMutePersistenceOk = CheckPanelMutePersistence(window, report);
                                     FinishUiTest(report, window, theme, audio, volume, options, logger,
-                                        muteState, volumeState, dragState, hideFeatureOk);
+                                        muteState, volumeState, dragState, hideFeatureOk, dragFeedbackOk,
+                                        panelMutePersistenceOk);
                                     break;
                             }
                         };
@@ -843,10 +865,50 @@ namespace AudioSwitch.Host
             }
         }
 
+        private static bool CheckPanelMutePersistence(FlyoutWindow window, StringBuilder report)
+        {
+            if (window.RowCount == 0)
+            {
+                report.AppendLine("跳过静音图标保持测试：没有设备行。");
+                return false;
+            }
+
+            report.AppendLine("[步骤 5] 0% 手动静音后关闭并重新打开面板");
+            window.SimulateMuteRow(0); // 先解除第 2 步造成的静音
+            window.SimulateVolumeRow(0, 0);
+            window.SimulateMuteRow(0); // 在 0% 音量下手动静音
+
+            string before = window.GetRowMuteGlyph(0);
+            window.HideFlyout();
+            window.ShowAt(300, 200);
+            string after = window.GetRowMuteGlyph(0);
+            bool ok = string.Equals(before, VolumeGlyphs.Muted, StringComparison.Ordinal)
+                && string.Equals(after, VolumeGlyphs.Muted, StringComparison.Ordinal);
+            report.AppendLine("0% 手动静音图标: 重新打开前=" + DescribeGlyph(before)
+                + "，重新打开后=" + DescribeGlyph(after)
+                + "（期望均为 扬声器+X）");
+            return ok;
+        }
+
+        private static string DescribeGlyph(string glyph)
+        {
+            if (string.Equals(glyph, VolumeGlyphs.Muted, StringComparison.Ordinal))
+            {
+                return "扬声器+X";
+            }
+
+            if (string.Equals(glyph, VolumeGlyphs.Zero, StringComparison.Ordinal))
+            {
+                return "扬声器无X";
+            }
+
+            return string.IsNullOrEmpty(glyph) ? "(无)" : glyph;
+        }
+
         private static void FinishUiTest(StringBuilder report, FlyoutWindow window, IThemeProvider theme,
             IAudioDeviceService audio, IAudioVolumeService volume, CommandLineOptions options, ILogger logger,
             AudioVolumeState muteState, AudioVolumeState volumeState, AudioVolumeState dragState,
-            bool hideFeatureOk)
+            bool hideFeatureOk, bool volumeDragFeedbackOk = true, bool panelMutePersistenceOk = true)
         {
             report.AppendLine();
             report.AppendLine("最终行状态: " + window.DescribeRows());
@@ -856,6 +918,7 @@ namespace AudioSwitch.Host
             bool dragOk = dragState == null || (dragState.Percent >= 70 && dragState.Percent <= 100);
             report.AppendLine("结果: "
                 + (window.IsVisible && muteOk && volumeOk && dragOk && hideFeatureOk
+                    && volumeDragFeedbackOk && panelMutePersistenceOk
                     ? "通过" : "请检查上方步骤"));
 
             FinishDeferredMode(window, theme, audio, volume);
